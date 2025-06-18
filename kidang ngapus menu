@@ -1,0 +1,14 @@
+NguBarEntities entities = new NguBarEntities();
+var data = entities.minumans.FirstOrDefault(x => x.id_minuman == this.selectedId);
+
+var confirmResult = MessageBox.Show("Apakah Anda yakin ingin Hapus?",
+                                        "Konfirmasi Hapus",
+                                        MessageBoxButtons.YesNo,
+                                        MessageBoxIcon.Question);
+
+if (confirmResult == DialogResult.Yes && data != null)
+{
+    entities.minumans.Remove(data);
+    entities.SaveChanges();
+    MessageBox.Show("Data telah dihapus !");
+}
