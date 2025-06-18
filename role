@@ -1,0 +1,42 @@
+// idang role
+var role = Form1.admin.role?.ToLower();
+
+    if (role == "kasir")
+    {
+        btnTambahMenu.Enabled = false;
+        btnHapusMenu.Enabled = false;
+        btnBuatAkun.Enabled = false;
+
+        // atau jika kamu pakai panel:
+        panelManajemenMenu.Visible = false;
+        panelBuatAkun.Visible = false;
+    }
+
+    labelWelcome.Text = $"Selamat datang, {Form1.admin.nama} ({role})";
+
+// idang namba akun tek
+private void btnBuatAkun_Click(object sender, EventArgs e)
+{
+    if (Form1.admin.role == "kasir")
+    {
+        MessageBox.Show("Kamu tidak punya izin untuk membuat akun!");
+        return;
+    }
+
+    // buka form buat akun
+    new FormTambahAkun().ShowDialog();
+}
+
+
+// usa kelupaan di login
+// Saat simpan akun baru
+var newAdmin = new admin
+{
+    username = tbUsername.Text,
+    email = tbEmail.Text,
+    password = tbPassword.Text,
+    role = cbRole.SelectedItem.ToString() // pastikan ada 'admin' atau 'kasir'
+};
+
+db.admins.Add(newAdmin);
+db.SaveChanges();
