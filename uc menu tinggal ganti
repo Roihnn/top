@@ -1,0 +1,85 @@
+        int selectedId = 0;
+        public UC_Minuman()
+        {
+            InitializeComponent();
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void UC_Minuman_Load(object sender, EventArgs e)
+        {
+           using (NguBarEntities entities = new NguBarEntities())
+            {
+                var data = entities.minumans;
+
+                foreach (var anggota in data)
+                {
+                    dataGridView1.Rows.Add(anggota.id_minuman, anggota.nama, anggota.harga, anggota.stok);
+                }
+            }
+
+        }
+
+        private void tb_cariMinuman_TextChanged(object sender, EventArgs e)
+        {
+            using (NguBarEntities nguBarEntities = new NguBarEntities())
+            {
+                string keyword = tb_cariMinuman.Text; // Ambil keyword dari TextBox
+
+                // Filter data berdasarkan keyword
+                var data = nguBarEntities.minumans
+                    .Where(x => x.nama.Contains(keyword)); // Sesuaikan kolom yang ingin dicari
+                   
+                  foreach (var anggota in data)
+                {
+                    dataGridView1.Rows.Add(anggota.id_minuman, anggota.nama, anggota.harga, anggota.stok);
+                }
+            }
+        }
+
+        private void btn_tambah_Click(object sender, EventArgs e)
+        {
+            this.Hide();
+            new TambahMinuman(false,null).ShowDialog();
+            this.Show();
+        }
+
+        private void dataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            this.selectedId = int.Parse(e.RowIndex.ToString());
+        }
+
+        private void btn_edit_Click(object sender, EventArgs e)
+        {
+            this.Hide();
+            new TambahMinuman(true, this.selectedId).ShowDialog();
+            this.Show();
+        }
+
+        private void btn_hapus_Click(object sender, EventArgs e)
+        {
+            NguBarEntities entities = new NguBarEntities();
+            var data = entities.minumans.FirstOrDefault(x => x.id_minuman == this.selectedId);
+
+            var confirmResult = MessageBox.Show("Apakah Anda yakin ingin Hapus?",
+                                                    "Konfirmasi Hapus",
+                                                    MessageBoxButtons.YesNo,
+                                                    MessageBoxIcon.Question);
+
+            if (confirmResult == DialogResult.Yes && data != null)
+            {
+                entities.minumans.Remove(data);
+                entities.SaveChanges();
+                MessageBox.Show("Data telah dihapus !");
+            }
+        }
+
+        private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+
+        }
+    }
+}
