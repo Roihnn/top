@@ -1,0 +1,188 @@
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+
+
+        private void UC_Order_Load(object sender, EventArgs e)
+        {
+            NguBarEntities db = new NguBarEntities();
+
+            cbCustomer.DataSource = db.customers.ToList();
+            cbCustomer.DisplayMember = "nama";
+            cbCustomer.ValueMember = "id_customer";
+
+            cbMakanan.DataSource = db.makanans.ToList();
+            cbMakanan.DisplayMember = "nama";
+            cbMakanan.ValueMember = "id_makanan";
+
+            cbMinuman.DataSource = db.minumans.ToList();
+            cbMinuman.DisplayMember = "nama";
+            cbMinuman.ValueMember = "id_minuman";
+
+            TampilTransaksi();
+
+
+        }
+
+        private void btnTotal_Click(object sender, EventArgs e)
+        {
+            if (!int.TryParse(tbJumlahMakanan.Text, out int jumlahMakanan) ||
+              !int.TryParse(tbJumlahMinuman.Text, out int jumlahMinuman))
+            {
+                MessageBox.Show("Jumlah makanan dan minuman harus angka!", "Validasi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using (var db = new NguBarEntities())
+            {
+                int idMakanan = Convert.ToInt32(cbMakanan.SelectedValue);
+                int idMinuman = Convert.ToInt32(cbMinuman.SelectedValue);
+
+                var makanan = db.makanans.Find(idMakanan);
+                var minuman = db.minumans.Find(idMinuman);
+
+                if (makanan == null || minuman == null)
+                {
+                    MessageBox.Show("Data makanan atau minuman tidak ditemukan!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                int total = (makanan.harga.GetValueOrDefault() * jumlahMakanan) +
+                            (minuman.harga.GetValueOrDefault() * jumlahMinuman);
+
+                tbTotal.Text = total.ToString();
+
+            }
+        }
+
+        private void btnSimpan_Click(object sender, EventArgs e)
+        {
+            if (!int.TryParse(tbJumlahMakanan.Text, out int jumlahMakanan) ||
+                !int.TryParse(tbJumlahMinuman.Text, out int jumlahMinuman))
+            {
+                MessageBox.Show("Jumlah makanan/minuman harus berupa angka!", "Validasi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using (var db = new NguBarEntities())
+            {
+                int idMakanan = Convert.ToInt32(cbMakanan.SelectedValue);
+                int idMinuman = Convert.ToInt32(cbMinuman.SelectedValue);
+
+                var makanan = db.makanans.Find(idMakanan);
+                var minuman = db.minumans.Find(idMinuman);
+
+                if (makanan == null || minuman == null)
+                {
+                    MessageBox.Show("Makanan atau minuman tidak ditemukan.");
+                    return;
+                }
+
+                // Hitung total otomatis
+                int totalHarga = (makanan.harga.GetValueOrDefault() * jumlahMakanan)
+                               + (minuman.harga.GetValueOrDefault() * jumlahMinuman);
+
+                tbTotal.Text = totalHarga.ToString(); // tampilkan di form
+
+                var transaksi = new transaksi
+                {
+                    id_customer = Convert.ToInt32(cbCustomer.SelectedValue),
+                    id_makanan = idMakanan,
+                    id_minuman = idMinuman,
+                    jumlah_makanan = jumlahMakanan,
+                    jumlah_minuman = jumlahMinuman,
+                    total_harga = totalHarga,
+                    tanggal = dttanggal.Value.Date
+                };
+
+                db.transaksis.Add(transaksi);
+
+                try
+                {
+                    db.SaveChanges();
+                    MessageBox.Show("Transaksi berhasil disimpan!");
+                    ClearForm();
+                    TampilTransaksi();
+                    BuatPDF(); // Buat nota PDF dari data yang baru disimpan
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Gagal menyimpan transaksi:\n" + (ex.InnerException?.InnerException?.Message ?? ex.Message));
+                }
+            }
+        }
+
+
+
+
+        private void ClearForm()
+        {
+            tbJumlahMakanan.Text = "0";
+            tbJumlahMinuman.Text = "0";
+            tbTotal.Text = "";
+        }
+
+        private void TampilTransaksi()
+        {
+            using (var db = new NguBarEntities())
+            {
+                dgvTransaksi.DataSource = db.transaksis
+                    .Select(t => new
+                    {
+                        t.nomor,
+                        Customer = t.customer.nama,
+                        Makanan = t.makanan.nama,
+                        Minuman = t.minuman.nama,
+                        t.jumlah_makanan,
+                        t.jumlah_minuman,
+                        t.total_harga,
+                        t.tanggal
+                    })
+                    .ToList();
+            }
+        }
+
+        private void BuatPDF()
+        {
+            using (var db = new NguBarEntities())
+            {
+                var transaksiTerakhir = db.transaksis
+                    .Include("customer")
+                    .Include("makanan")
+                    .Include("minuman")
+                    .OrderByDescending(t => t.nomor)
+                    .FirstOrDefault();
+
+                if (transaksiTerakhir == null)
+                {
+                    MessageBox.Show("Transaksi tidak ditemukan.");
+                    return;
+                }
+
+                string filePath = $"Nota_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    Document doc = new Document();
+                    PdfWriter.GetInstance(doc, stream);
+                    doc.Open();
+
+                    doc.Add(new Paragraph("=== NOTA TRANSAKSI YUNGOPI ==="));
+                    doc.Add(new Paragraph($"Tanggal        : {transaksiTerakhir.tanggal:dd-MM-yyyy}"));
+                    doc.Add(new Paragraph($"Customer       : {transaksiTerakhir.customer.nama}"));
+                    doc.Add(new Paragraph($"Makanan        : {transaksiTerakhir.makanan.nama} x {transaksiTerakhir.jumlah_makanan}"));
+                    doc.Add(new Paragraph($"Minuman        : {transaksiTerakhir.minuman.nama} x {transaksiTerakhir.jumlah_minuman}"));
+                    doc.Add(new Paragraph($"Total Harga    : Rp {transaksiTerakhir.total_harga:N0}"));
+                    doc.Add(new Paragraph("====================================="));
+                    doc.Close();
+                }
+
+                MessageBox.Show("Nota PDF berhasil dibuat!\n" + Path.GetFullPath(filePath));
+                System.Diagnostics.Process.Start(filePath); // langsung buka PDF
+            }
+        }
+
+
+
+
+    }
+}
